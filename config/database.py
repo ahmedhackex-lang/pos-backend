@@ -1,31 +1,30 @@
 """
-Application configuration using Pydantic Settings
-Reads from environment variables
+PostgreSQL database connection using SQLAlchemy
 """
-from pydantic_settings import BaseSettings
-from typing import Optional
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from config.settings import settings
+
+# Create engine
+engine = create_engine(
+    settings.DATABASE_URL,
+    pool_pre_ping=True,
+    pool_size=10,
+    max_overflow=20
+)
+
+# Session factory
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Base class for models
+Base = declarative_base()
 
 
-class Settings(BaseSettings):
-    # App
-    APP_NAME: str = "Grocery POS Cloud Backend"
-    APP_VERSION: str = "1.0.0"
-    DEBUG: bool = False
-    
-    # Database (Supabase PostgreSQL)
-    DATABASE_URL: str
-    
-    # Security
-    SECRET_KEY: str
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_HOURS: int = 8
-    
-    # CORS
-    ALLOWED_ORIGINS: str = "*"  # Change in production
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
-
-
-settings = Settings()
+# Dependency
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
