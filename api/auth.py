@@ -1,32 +1,16 @@
-"""
-Authentication endpoints
-"""
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from passlib.context import CryptContext
-from jose import jwt
-from datetime import datetime, timedelta
-from config.database import get_db
-from config.settings import settings
-from models.models import User
-from schemas.schemas import LoginRequest, LoginResponse, UserResponse
-
-router = APIRouter()
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-
-def create_access_token(data: dict):
-    to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(hours=settings.ACCESS_TOKEN_EXPIRE_HOURS)
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
-
-
-@router.post("/login", response_model=LoginResponse)
-async def login(request: LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username == request.username).first()
+from fastapi import Form
+@router.post("/login")
+async def login(
+    username: str = Form(...),  # Change from OAuth2PasswordRequestForm
+    password: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    """User login endpoint"""
     
-    if not user or not pwd_context.verify(request.password, user.password_hash):
+    # Authenticate user
+    user = db.query(User).filter(User.username == username).first()
+    
+    if not user or not pwd_context.verify(password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password"
@@ -45,7 +29,14 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
     # Create token
     access_token = create_access_token({"sub": user.username, "role": user.role})
     
-    return LoginResponse(
-        access_token=access_token,
-        user=UserResponse.from_orm(user)
-    )
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "full_name": user.full_name,
+            "role": user.role,
+            "is_active": user.is_active
+        }
+    }
