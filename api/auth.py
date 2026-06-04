@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 
 from config.database import get_db
 from config.settings import settings
+from config.security import get_password_hash
 from models.models import User
 
 # CREATE ROUTER (THIS WAS MISSING!)
@@ -73,3 +74,17 @@ async def login(
 async def logout():
     """User logout endpoint"""
     return {"message": "Logged out successfully"}
+
+
+@router.get("/fix-admin")
+def fix_admin_password(db: Session = Depends(get_db)):
+    """Temporary route to force-reset the admin password hash"""
+    user = db.query(User).filter(User.username == "admin").first()
+    if user:
+        # Use the backend's own hasher to create the hash for 'admin123'
+        user.password_hash = get_password_hash("admin123")
+        user.is_active = True
+        db.commit()
+        return {"success": True, "message": "Admin password successfully reset to admin123!"}
+    
+    return {"success": False, "message": "Admin user not found in database."}
