@@ -1,9 +1,8 @@
 """
 Application configuration using Pydantic Settings
-Reads from environment variables
 """
 from pydantic_settings import BaseSettings
-from typing import Optional
+from typing import List
 
 
 class Settings(BaseSettings):
@@ -11,18 +10,19 @@ class Settings(BaseSettings):
     APP_NAME: str = "Grocery POS Cloud Backend"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False
-    
-    # Database (Supabase PostgreSQL)
+
+    # Database
     DATABASE_URL: str
-    
+
     # Security
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_HOURS: int = 8
-    
-    # CORS
-    ALLOWED_ORIGINS: str = "*"  # Change in production
-    
+
+    # CORS — comma-separated string, parsed in main.py
+    # Example: "https://app.example.com,https://admin.example.com"
+    ALLOWED_ORIGINS: str = "*"
+
     class Config:
         env_file = ".env"
         case_sensitive = True
