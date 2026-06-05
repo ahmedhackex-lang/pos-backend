@@ -10,7 +10,6 @@ from config.settings import settings
 
 router = APIRouter()
 
-# Schema for JSON Login
 class LoginRequest(BaseModel):
     username: str
     password: str
@@ -23,20 +22,17 @@ def create_access_token(data: dict):
 
 @router.post("/login")
 async def login(request: LoginRequest, db: Session = Depends(get_db)):
-    # 1. Find user
     user = db.query(User).filter(User.username == request.username).first()
     
-    # 2. Verify
     if not user or not verify_password(request.password, user.password_hash):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, 
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password"
         )
     
     if not user.is_active:
-        raise HTTPException(status_code=403, detail="Account deactivated")
+        raise HTTPException(status_code=403, detail="Account is inactive")
     
-    # 3. Token
     access_token = create_access_token({"sub": user.username, "role": user.role})
     
     return {
