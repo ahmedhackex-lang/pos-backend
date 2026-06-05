@@ -19,24 +19,21 @@ async def get_products(
     is_active: Optional[bool] = True,
     db: Session = Depends(get_db),
 ):
-    """List products with optional search"""
     query = db.query(Product)
     if is_active is not None:
         query = query.filter(Product.is_active == is_active)
     if search:
-        search_filter = f"%{search}%"
+        f = f"%{search}%"
         query = query.filter(
-            (Product.name.ilike(search_filter))
-            | (Product.barcode.ilike(search_filter))
-            | (Product.category.ilike(search_filter))
+            (Product.name.ilike(f))
+            | (Product.barcode.ilike(f))
+            | (Product.category.ilike(f))
         )
-    products = query.order_by(Product.name).offset(skip).limit(limit).all()
-    return products
+    return query.order_by(Product.name).offset(skip).limit(limit).all()
 
 
 @router.get("/{barcode}", response_model=ProductResponse)
 async def get_product_by_barcode(barcode: str, db: Session = Depends(get_db)):
-    """Get a product by its barcode"""
     product = db.query(Product).filter(Product.barcode == barcode).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
@@ -45,16 +42,9 @@ async def get_product_by_barcode(barcode: str, db: Session = Depends(get_db)):
 
 @router.post("", response_model=ProductResponse)
 async def create_product(product: ProductCreate, db: Session = Depends(get_db)):
-    """Create a new product"""
-    # Check for duplicate barcode
-    existing = (
-        db.query(Product).filter(Product.barcode == product.barcode).first()
-    )
+    existing = db.query(Product).filter(Product.barcode == product.barcode).first()
     if existing:
-        raise HTTPException(
-            status_code=409,
-            detail=f"Product with barcode {product.barcode} already exists",
-        )
+        raise HTTPException(status_code=409, detail=f"Barcode {product.barcode} exists")
     db_product = Product(**product.dict())
     db.add(db_product)
     db.commit()
@@ -63,12 +53,7 @@ async def create_product(product: ProductCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{product_id}", response_model=ProductResponse)
-async def update_product(
-    product_id: int,
-    product_update: ProductCreate,
-    db: Session = Depends(get_db),
-):
-    """Update a product"""
+async def update_product(product_id: int, product_update: ProductCreate, db: Session = Depends(get_db)):
     db_product = db.query(Product).filter(Product.id == product_id).first()
     if not db_product:
         raise HTTPException(status_code=404, detail="Product not found")
@@ -81,7 +66,6 @@ async def update_product(
 
 @router.delete("/{product_id}")
 async def delete_product(product_id: int, db: Session = Depends(get_db)):
-    """Soft-delete a product (sets is_active=False)"""
     db_product = db.query(Product).filter(Product.id == product_id).first()
     if not db_product:
         raise HTTPException(status_code=404, detail="Product not found")
