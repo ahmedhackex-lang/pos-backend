@@ -1,9 +1,7 @@
 """
 Sales transaction endpoints
-- Creates sales (idempotent on invoice_number)
-- Lists sales with pagination
 """
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 from config.database import get_db
@@ -15,15 +13,10 @@ router = APIRouter()
 
 @router.post("", response_model=SaleResponse)
 async def create_sale(sale: SaleCreate, db: Session = Depends(get_db)):
-    """Create a sale (idempotent on invoice_number)"""
-    # Idempotency: return existing sale if invoice_number already exists
-    existing = (
-        db.query(Sale).filter(Sale.invoice_number == sale.invoice_number).first()
-    )
+    existing = db.query(Sale).filter(Sale.invoice_number == sale.invoice_number).first()
     if existing:
         return existing
 
-    # Create sale record
     db_sale = Sale(
         invoice_number=sale.invoice_number,
         cashier_id=sale.cashier_id,
@@ -36,7 +29,6 @@ async def create_sale(sale: SaleCreate, db: Session = Depends(get_db)):
     db.add(db_sale)
     db.flush()
 
-    # Create line items
     for item in sale.items:
         db_item = SaleItem(
             sale_id=db_sale.id,
@@ -62,9 +54,7 @@ async def get_sales(
     is_voided: Optional[bool] = None,
     db: Session = Depends(get_db),
 ):
-    """List sales with optional filtering"""
     query = db.query(Sale)
     if is_voided is not None:
         query = query.filter(Sale.is_voided == is_voided)
-    sales = query.order_by(Sale.created_at.desc()).offset(skip).limit(limit).all()
-    return sales
+    return query.order_by(Sale.created_at.desc()).offset(skip).limit(limit).all()
